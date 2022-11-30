@@ -1,4 +1,17 @@
-!BANABLE!
+# !BANNABLE!
+
+Originally made by:
+https://github.com/NoeMoyen/LoL-LCU-LobbyReveal
+
+## Differences to the original version:
+* Generally abbreviated the player stats chat messages to make them oneliners
+* Abbreviated tier to only 1 letter (d for Diamond, p for Platinum)
+* Changed romanian division numbers to good numbers 👍🏻
+* Shows LP count for Master+ instead of div+tier
+* Removed a lot of unecessary chat output
+* Added silent mode to disable chat output
+* Added unfriendly mode to disable multisearch chat message (still prints it in the console)
+* Changed op.gg multisearch to porofessor pregame
 
 # LoL-LCU-LobbyReveal
 Python script that get the name of eatch memeber of the team in a ranked champ select, get the elo, winrate, and rank of eatch player, and print all the necessary information in the chat. 
@@ -27,6 +40,3 @@ or run normaly with python
 ```
 python3 LobbyReveal.py
 ```
-
-Please contact me on discord if you have any questions.
-Momolly#7525
