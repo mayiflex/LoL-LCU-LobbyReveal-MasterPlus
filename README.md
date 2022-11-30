@@ -4,6 +4,8 @@ Originally made by:
 https://github.com/NoeMoyen/LoL-LCU-LobbyReveal
 
 ## Differences to the original version:
+<img src="https://i.imgur.com/Mqhic83.png" align="right"/>
+
 * Generally abbreviated the player stats chat messages to make them oneliners
 * Abbreviated tier to only 1 letter (d for Diamond, p for Platinum)
 * Changed romanian division numbers to good numbers 👍🏻
