@@ -10,8 +10,9 @@ https://github.com/NoeMoyen/LoL-LCU-LobbyReveal
 * Shows LP count for Master+ instead of div+tier
 * Removed a lot of unecessary chat output
 * Added silent mode to disable chat output
-* Added unfriendly mode to disable multisearch chat message (still prints it in the console)
+* Added unfriendly mode to disable multisearch chat message
 * Changed op.gg multisearch to porofessor pregame
+* Automatically opens multisearch in new browser tab
 
 # LoL-LCU-LobbyReveal
 Python script that get the name of eatch memeber of the team in a ranked champ select, get the elo, winrate, and rank of eatch player, and print all the necessary information in the chat. 
