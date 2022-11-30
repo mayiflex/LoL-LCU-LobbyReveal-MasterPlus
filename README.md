@@ -1,4 +1,4 @@
-# !BANNABLE!
+# BANNABLE!
 
 Originally made by:
 https://github.com/NoeMoyen/LoL-LCU-LobbyReveal
