@@ -9,15 +9,20 @@ import base64
 from os import system, name
 from lcu_driver import Connector
 from riotwatcher import LolWatcher, ApiError
-
+import urllib.parse
+import webbrowser
 
 disable_warnings()
 
 # global variables
 
-api_key = '<RIOT API KEY>'
+api_key = '<YOUR_API_KEY>'
 watcher = LolWatcher(api_key)
 my_region = 'euw1'
+#silent = no chat messages
+silent=False;
+#send multisearch
+friendly=True;
 
 app_port = None
 auth_token = None
@@ -121,13 +126,13 @@ async def connect(connection):
 
     r = requests.get(get_current_summoner, headers=lcu_headers, verify=False)
     r = json.loads(r.text)
-    print("Welcome to the League of Legends Party name finder :)!")
+    print("Welcome to LobbyReveal Masters+! :)")
     print('Connected: ' + r['displayName'])
 
     try :
         checkForLobby = True
         while True:
-            nameArr = []
+            playernames = []
             get_champ_select = lcu_api + '/lol-champ-select/v1/session'
             r = requests.get(get_champ_select, headers=lcu_headers, verify=False)
             r = json.loads(r.text)
@@ -147,13 +152,10 @@ async def connect(connection):
                             r = json.loads(r.text)
                         except:
                             print("la route n'existe plus, logiciel obselète")
-                        nameArr = [] 
-                        nospaces = []
+                        playernames = [] 
+                        playernamesUrlencoded = []
                         ranked_stats = []
-                        totalWinrate = 0
-                        nbPlayer = 5
-                        elo = ""
-                        rank = ""
+                        nbPlayers = 5
                         try:
                             getChat = await connection.request('get', "/lol-chat/v1/conversations")
                             chat = await getChat.json()
@@ -166,56 +168,71 @@ async def connect(connection):
                                 except KeyError:
                                     print("error in get lobby id")
                                 headers = {'Content-type': 'application/json'}
-                                request = "/lol-chat/v1/conversations/" + str(lobbyID) + "/messages"
+                                messageRequestEndpoint = "/lol-chat/v1/conversations/" + str(lobbyID) + "/messages"
                                 for x in r['participants']:
-                                    nameArr.append(x['game_name'])
-                                    nospaces.append(x['game_name'].replace(" ", "%20"))
-                                print(len(nameArr))
-                                if len(nameArr) == nbPlayer:
-                                    for i in range(len(nameArr)):
-                                        try:
-                                            usera = watcher.summoner.by_name(my_region, nameArr[i])
-                                            #sleep(0.3)
-                                            user_id = usera['id']
-                                            #print(nameArr[i], " : ", user_id)
-                                           
-                                            try: 
-                                                ranked_stats = watcher.league.by_summoner(my_region, user_id)
-                                                #print(ranked_stats)
-                                                for j in range(len(ranked_stats)):
-                                                    try:
-                                                        if ranked_stats[j]['queueType'] == "RANKED_SOLO_5x5":
-                                                            rank = ranked_stats[j]['tier']
-                                                            elo = ranked_stats[j]['rank']
-                                                            win = ranked_stats[j]['wins']
-                                                            lose = ranked_stats[j]['losses']
-                                                            winrate = win / (win + lose)
-                                                            totalWinrate += winrate
-                                                            print(nameArr[i], " : ", rank, elo, winrate)
-                                                            winrate = win / (win + lose) * 100
-                                                            gameNbr = win + lose
-                                                            totalWinrate = totalWinrate + winrate                
-                                                    except KeyError:
-                                                        await connection.request('post', request, headers=headers, data={"type":"chat", "body": "error getting " + str(nameArr[i]) + " ranked datas, first game ? "})
-                                                await connection.request('post', request, headers=headers, data={"type":"chat", "body": str(nameArr[i]) + " is " + str(elo) + " " + str(rank) + " with a " + str(round(winrate,2)) + "% winrate in " + str(gameNbr) + " games."})
-                                            except ApiError:
-                                                print("error in get ranked stats")
-                                                await connection.request('post', request, headers=headers, data={"type":"chat", "body": "error getting " + str(nameArr[i]) + " ranked datas :'("}) 
+                                    playernames.append(x['game_name'])
+                                    playernamesUrlencoded.append(urllib.parse.quote(x['game_name']))
+                                if(len(playernames) != nbPlayers):
+                                    print("Unable to fetch " + str(nbPlayers - len(playernames)) + " players!:c");
+                                    if not silent:
+                                        await connection.request('post', messageRequestEndpoint, headers=headers, data={"type":"chat", "body": "Unable to fetch " + str(nbPlayers - len(playernames)) + " players!:c"})
+                                for i in range(len(playernames)):
+                                    try:
+                                        user_id = watcher.summoner.by_name(my_region, playernames[i])['id']
+                                        try: 
+                                            ranked_stats = watcher.league.by_summoner(my_region, user_id)
+                                            #search for solo duo stats
+                                            for j in range(len(ranked_stats)):
+                                                try:
+                                                    if ranked_stats[j]['queueType'] == "RANKED_SOLO_5x5":
+                                                        tier = ranked_stats[j]['tier']
+                                                        division = ranked_stats[j]['rank']
+                                                        wins = ranked_stats[j]['wins']
+                                                        losses = ranked_stats[j]['losses']
+                                                        lp = ranked_stats[j]['leaguePoints']
+                                                        gameCount = wins + losses
+                                                        winrate = wins / gameCount * 100
+                                                        elo = "";
+                                                        if tier not in ["MASTER", "GRANDMASTER", "CHALLENGER"]:
+                                                            elo = str(tier)[:1].lower()
+                                                            match division:
+                                                                case "IV":
+                                                                    elo += str(4);
+                                                                case "III":
+                                                                    elo += str(3);
+                                                                case "II":
+                                                                    elo += str(2);
+                                                                case "I":
+                                                                    elo += str(1);
+                                                                case _:
+                                                                    elo += " " + division;
+                                                        else:
+                                                            elo = str(lp) + "LP"
+                                                        playerInfoMessage = str(playernames[i]) + ": " + elo + " " + str(round(winrate,1)) + "% in " + str(gameCount);
+                                                        print(playerInfoMessage);
+                                                except KeyError:
+                                                    print("keyerror");
+                                            if not silent:
+                                                await connection.request('post', messageRequestEndpoint, headers=headers, data={"type":"chat", "body": playerInfoMessage})
                                         except ApiError:
-                                            print("error in get user id. check your api key ?")
-                                            await connection.request('post', request, headers=headers, data={"type":"chat", "body": "error getting " + str(nameArr[i]) + " user id :'("})
-                                    await connection.request('post', request, headers=headers, data={"type":"chat", "body": "https://euw.op.gg/multi/query=" + nospaces[0] + "%2C" + nospaces[1] + "%2C" + nospaces[2] + "%2C" + nospaces[3] + "%2C" + nospaces[4]})
-                                    if totalWinrate / nbPlayer > 50:
-                                        await connection.request('post', request, headers=headers, data={"type":"chat", "body": "Average winrate is " + str(round(totalWinrate / nbPlayer,2)) + "%, We can win this!"})
-                                    else:
-                                        await connection.request('post', request, headers=headers, data={"type":"chat", "body": "Average winrate is " + str(round(totalWinrate / nbPlayer,2)) + "%, it will be hard ..."})
-                                    await connection.request('post', request, headers=headers, data={"type":"chat", "body": "Github: NoeMoyen"})
-                                    showNotInChampSelect = True
-                                    checkForLobby = True 
-                                    exit(0)   
-                                #showNotInChampSelect = False
-                                #checkForLobby = True
-                                    
+                                            print("error in get ranked stats")
+                                    except ApiError:
+                                        print("error in get user id. check your api key ?")
+                                pregame = "https://porofessor.gg/pregame/" + my_region[:-1] + "/";
+                                for player in playernamesUrlencoded:
+                                    pregame += player + ","
+                                pregame = pregame[:-1] + "/soloqueue"
+                                if not silent:
+                                    if friendly:
+                                        await connection.request('post', messageRequestEndpoint, headers=headers, data={"type":"chat", "body": pregame})
+                                    await connection.request('post', messageRequestEndpoint, headers=headers, data={"type":"chat", "body": "lobby seems sussy ඞ"})
+                                print(pregame);
+                                webbrowser.open(pregame, new=2, autoraise=False)
+                                print("\r\nCreated by \r\nGitHub: NoeMoyen");
+                                print("Forked by\r\nhttps://mayiflex.dev");
+                                showNotInChampSelect = True
+                                checkForLobby = True 
+                                exit(0)
     except KeyboardInterrupt:
         print('\n\n* Exiting... *')
         sys.exit(0)
